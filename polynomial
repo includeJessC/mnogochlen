@@ -1,0 +1,369 @@
+#include <iostream>
+#include <vector>
+#include <sstream>
+
+template<typename T>
+class Polynomial {
+public:
+    Polynomial() {}
+
+    Polynomial(const T& N) {
+        _coords.push_back(N);
+        zeroes();
+    }
+
+    Polynomial(const std::vector<T>& new__coords): _coords(new__coords) {
+        zeroes();
+    }
+
+    template<typename Iter>
+    Polynomial(Iter first, Iter last) {
+        for (first; first != last; ++first) {
+            _coords.push_back(*first);
+        }
+        zeroes();
+    }
+
+    ~Polynomial() {
+        _coords.clear();
+    }
+
+    int Degree() const {
+        return static_cast<int>(_coords.size()) - 1;
+    }
+
+    auto begin() const {
+        return _coords.begin();
+    }
+
+    auto end() const {
+        return _coords.end();
+    }
+
+    T operator[](const int& i) const {
+        if (i > Degree())
+            return static_cast<T>(0);
+        return _coords[i];
+    }
+
+    T& at(const int& i) {
+        if (i > Degree())
+            _coords.resize(i + 1);
+        return _coords[i];
+    }
+
+    T operator ()(const T& x) const {
+        T ans = static_cast<T>(0);
+        for (int i = 0; i <= Degree(); ++i) {
+            if (_coords[i] != static_cast<T>(0))
+                ans += _coords[i] * _pow(x, i);
+        }
+        return ans;
+    }
+
+    Polynomial operator +() const {
+        return *this;
+    }
+
+    Polynomial operator -() const {
+        Polynomial tmp(*this);
+        for (int i = 0; i <= tmp.Degree(); ++i) {
+            tmp.at(i) *= static_cast<T>(-1);
+        }
+        tmp.zeroes();
+        return tmp;
+    }
+
+    Polynomial& operator +=(const Polynomial& other) {
+        for (int i = 0; i <= other.Degree(); ++i) {
+            at(i) += other[i];
+        }
+        zeroes();
+        return *this;
+    }
+
+    Polynomial& operator -=(const Polynomial& other) {
+        for (int i = 0; i <= other.Degree(); ++i) {
+            at(i) -= other[i];
+        }
+        zeroes();
+        return *this;
+    }
+
+    Polynomial& operator *=(const Polynomial& other) {
+        Polynomial ans;
+        if (Degree() == -1 || other.Degree() == -1) {
+            *this = ans;
+            return *this;
+        }
+        for (int i = 0; i <= Degree() + other.Degree(); ++i) {
+            for (int j = 0; j <= i; ++j) {
+                ans.at(i) += (*this)[j] * other[i - j];
+            }
+        }
+        ans.zeroes();
+        *this = ans;
+        return *this;
+    }
+
+    Polynomial& operator &=(const Polynomial& other) {
+        Polynomial ans;
+        for (int i = 0; i <= Degree(); ++i) {
+            ans += (*this)[i] * _pow(other, i);
+        }
+        *this = ans;
+        return *this;
+    }
+
+    Polynomial& operator /=(const Polynomial& other) {
+        Polynomial tmp = divide(other).first;
+        *this = tmp;
+        return *this;
+    }
+
+    Polynomial& operator %=(const Polynomial& other) {
+        Polynomial tmp = divide(other).second;
+        *this = tmp;
+        return *this;
+    }
+
+    static Polynomial _gcd(Polynomial a, const Polynomial& b) {
+        if (b == Polynomial(static_cast<T>(0))) {
+            return a;
+        } else {
+            return _gcd(b, a %= b);
+        }
+    }
+
+private:
+    std::vector<T> _coords;
+
+    void zeroes() {
+        while (_coords.size() > 0 && _coords.back() == static_cast<T>(0)) {
+            _coords.pop_back();
+        }
+    }
+
+    static T _pow(T a, int b) {
+        if (b == 0) {
+            return static_cast<T>(1);
+        } else if (b % 2) {
+            return a * _pow(a * a, b / 2);
+        } else {
+            return _pow(a * a, b / 2);
+        }
+    }
+
+    static Polynomial<T> _pow(Polynomial<T> a, int b) {
+        if (b == 0) {
+            return static_cast<T>(1);
+        } else if (b % 2) {
+            return a * _pow(a * a, b / 2);
+        } else {
+            return _pow(a * a, b / 2);
+        }
+    }
+
+    std::pair<Polynomial, Polynomial> divide(const Polynomial<T>& other) {
+        Polynomial integer;
+        Polynomial remains = *this;
+        while (remains.Degree() >= other.Degree()) {
+            Polynomial tmp;
+            tmp.at(remains.Degree() - other.Degree()) =
+                    remains[remains.Degree()] / other[other.Degree()];
+
+            remains -= tmp * other;
+            integer += tmp;
+        }
+        return std::make_pair(integer, remains);
+    }
+};
+
+template<typename T>
+bool operator ==(const Polynomial<T>& first, const Polynomial<T>& second) {
+    if (first.Degree() != second.Degree()) {
+        return false;
+    }
+    for (int i = 0; i <= first.Degree(); ++i) {
+        if (first[i] != second[i])
+            return false;
+    }
+    return true;
+}
+
+template<typename T, typename U>
+bool operator ==(const Polynomial<T>& first, const U& second) {
+    return first == Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+bool operator ==(const U& first, const Polynomial<T>& second) {
+    return second == first;
+}
+
+template<typename T>
+bool operator !=(const Polynomial<T>& first, const Polynomial<T>& second) {
+    return !(first == second);
+}
+
+template<typename T, typename U>
+bool operator !=(const Polynomial<T>& first, const U& second) {
+    return !(first == second);
+}
+
+template<typename T, typename U>
+bool operator !=(const U& first, const Polynomial<T>& second) {
+    return !(second == first);
+}
+
+template<typename T>
+Polynomial<T> operator +(Polynomial<T> first, const Polynomial<T>& second) {
+    return first += second;
+}
+
+template<typename T, typename U>
+Polynomial<T> operator +(Polynomial<T> first, const U& second) {
+    return first += Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+Polynomial<T> operator +(const U& first, const Polynomial<T>& second) {
+    return second + first;
+}
+
+template<typename T>
+Polynomial<T> operator -(Polynomial<T> first, const Polynomial<T>& second) {
+    return first -= second;
+}
+
+template<typename T, typename U>
+Polynomial<T> operator -(Polynomial<T> first, const U& second) {
+    return first -= Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+Polynomial<T> operator -(const U& first, const Polynomial<T>& second) {
+    return -second + first;
+}
+
+template<typename T>
+Polynomial<T> operator *(Polynomial<T> first, const Polynomial<T>& second) {
+    return first *= second;
+}
+
+template<typename T, typename U>
+Polynomial<T> operator *(Polynomial<T> first, const U& second) {
+    return first *= Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+Polynomial<T> operator *(const U& first, const Polynomial<T>& second) {
+    return second * first;
+}
+
+template<typename T>
+Polynomial<T> operator &(Polynomial<T> first, const Polynomial<T>& second) {
+    return first &= second;
+}
+
+template<typename T>
+Polynomial<T> operator /(Polynomial<T> first, const Polynomial<T>& second) {
+    return first /= second;
+}
+
+template<typename T, typename U>
+Polynomial<T> operator /(Polynomial<T> first, const U& second) {
+    return first /= Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+Polynomial<T> operator /(const U& first, const Polynomial<T>& second) {
+    return Polynomial<T>(static_cast<T>(first)) / second;
+}
+
+template<typename T>
+Polynomial<T> operator %(Polynomial<T> first, const Polynomial<T>& second) {
+    return first %= second;
+}
+
+template<typename T, typename U>
+Polynomial<T> operator %(Polynomial<T> first, const U& second) {
+    return first %= Polynomial<T>(static_cast<T>(second));
+}
+
+template<typename T, typename U>
+Polynomial<T> operator %(const U& first, const Polynomial<T>& second) {
+    return Polynomial<T>(static_cast<T>(first)) % second;
+}
+
+template<typename T>
+Polynomial<T> operator,(const Polynomial<T>& first, const Polynomial<T>& second) {
+    Polynomial<T> tmp = Polynomial<T>::_gcd(first, second);
+    tmp /= tmp[tmp.Degree()];
+    return tmp;
+}
+
+template <typename T>
+bool is_one(const T& value) {
+    std::stringstream ss;
+    ss << value;
+    std::string s;
+    ss >> s;
+    return s == "1";
+}
+
+
+template <typename T>
+bool is_minus_one(const T& value) {
+    std::stringstream ss;
+    ss << value;
+    std::string s;
+    ss >> s;
+    return s == "-1";
+}
+
+
+template <typename T>
+bool has_minus(const T& value) {
+    std::stringstream ss;
+    ss << value;
+    std::string s;
+    ss >> s;
+    return s.size() > 0 && s[0] == '-';
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Polynomial<T>& poly) {
+    if (poly.Degree() == -1) {
+        os << T();
+        return os;
+    }
+    for (int i = poly.Degree(); i >= 0; --i) {
+        if (poly[i] == T()) {
+            continue;
+        }
+        if (!has_minus(poly[i]) && i != poly.Degree()) {
+            os << "+";
+        }
+        if (!is_one(poly[i]) && !is_minus_one(poly[i])) {
+            os << poly[i];
+        } else {
+            if (is_minus_one(poly[i]) && i != 0) {
+                os << "-";
+            }
+            if (i == 0) {
+                os << poly[i];
+            }
+        }
+        if (i > 0) {
+            if (poly[i] != static_cast<T>(1) && poly[i] != static_cast<T>(-1)) {
+                os << '*';
+            }
+            os << 'x';
+        }
+        if (i > 1) {
+            os << "^" << i;
+        }
+    }
+    return os;
+}
